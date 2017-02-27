@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dispatcher;
+
+message EventHeader {
+    string King = 1;
+    string Noble = 2;    
+    string Knight = 3;
+    string Peasant = 4;
+}
+
+message Event {
+    EventHeader Header = 1;
+    bytes Payload = 5;
+}
