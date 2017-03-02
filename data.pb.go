@@ -10,6 +10,7 @@
 
 	It has these top-level messages:
 		EventHeader
+		EventBody
 		Event
 */
 package dispatcher
@@ -30,10 +31,11 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion1
 
 type EventHeader struct {
-	King    string `protobuf:"bytes,1,opt,name=King,proto3" json:"King,omitempty"`
-	Noble   string `protobuf:"bytes,2,opt,name=Noble,proto3" json:"Noble,omitempty"`
-	Knight  string `protobuf:"bytes,3,opt,name=Knight,proto3" json:"Knight,omitempty"`
-	Peasant string `protobuf:"bytes,4,opt,name=Peasant,proto3" json:"Peasant,omitempty"`
+	King    string   `protobuf:"bytes,1,opt,name=King,proto3" json:"King,omitempty"`
+	Noble   string   `protobuf:"bytes,2,opt,name=Noble,proto3" json:"Noble,omitempty"`
+	Knight  string   `protobuf:"bytes,3,opt,name=Knight,proto3" json:"Knight,omitempty"`
+	Peasant string   `protobuf:"bytes,4,opt,name=Peasant,proto3" json:"Peasant,omitempty"`
+	Tags    []string `protobuf:"bytes,5,rep,name=Tags" json:"Tags,omitempty"`
 }
 
 func (m *EventHeader) Reset()                    { *m = EventHeader{} }
@@ -41,15 +43,24 @@ func (m *EventHeader) String() string            { return proto.CompactTextStrin
 func (*EventHeader) ProtoMessage()               {}
 func (*EventHeader) Descriptor() ([]byte, []int) { return fileDescriptorData, []int{0} }
 
+type EventBody struct {
+	Content []byte `protobuf:"bytes,1,opt,name=Content,proto3" json:"Content,omitempty"`
+}
+
+func (m *EventBody) Reset()                    { *m = EventBody{} }
+func (m *EventBody) String() string            { return proto.CompactTextString(m) }
+func (*EventBody) ProtoMessage()               {}
+func (*EventBody) Descriptor() ([]byte, []int) { return fileDescriptorData, []int{1} }
+
 type Event struct {
-	Header  *EventHeader `protobuf:"bytes,1,opt,name=Header" json:"Header,omitempty"`
-	Payload []byte       `protobuf:"bytes,5,opt,name=Payload,proto3" json:"Payload,omitempty"`
+	Header *EventHeader `protobuf:"bytes,1,opt,name=Header" json:"Header,omitempty"`
+	Body   *EventBody   `protobuf:"bytes,2,opt,name=Body" json:"Body,omitempty"`
 }
 
 func (m *Event) Reset()                    { *m = Event{} }
 func (m *Event) String() string            { return proto.CompactTextString(m) }
 func (*Event) ProtoMessage()               {}
-func (*Event) Descriptor() ([]byte, []int) { return fileDescriptorData, []int{1} }
+func (*Event) Descriptor() ([]byte, []int) { return fileDescriptorData, []int{2} }
 
 func (m *Event) GetHeader() *EventHeader {
 	if m != nil {
@@ -58,8 +69,16 @@ func (m *Event) GetHeader() *EventHeader {
 	return nil
 }
 
+func (m *Event) GetBody() *EventBody {
+	if m != nil {
+		return m.Body
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*EventHeader)(nil), "dispatcher.EventHeader")
+	proto.RegisterType((*EventBody)(nil), "dispatcher.EventBody")
 	proto.RegisterType((*Event)(nil), "dispatcher.Event")
 }
 func (m *EventHeader) Marshal() (data []byte, err error) {
@@ -101,6 +120,45 @@ func (m *EventHeader) MarshalTo(data []byte) (int, error) {
 		i = encodeVarintData(data, i, uint64(len(m.Peasant)))
 		i += copy(data[i:], m.Peasant)
 	}
+	if len(m.Tags) > 0 {
+		for _, s := range m.Tags {
+			data[i] = 0x2a
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	return i, nil
+}
+
+func (m *EventBody) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *EventBody) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Content) > 0 {
+		data[i] = 0xa
+		i++
+		i = encodeVarintData(data, i, uint64(len(m.Content)))
+		i += copy(data[i:], m.Content)
+	}
 	return i, nil
 }
 
@@ -129,11 +187,15 @@ func (m *Event) MarshalTo(data []byte) (int, error) {
 		}
 		i += n1
 	}
-	if len(m.Payload) > 0 {
-		data[i] = 0x2a
+	if m.Body != nil {
+		data[i] = 0x12
 		i++
-		i = encodeVarintData(data, i, uint64(len(m.Payload)))
-		i += copy(data[i:], m.Payload)
+		i = encodeVarintData(data, i, uint64(m.Body.Size()))
+		n2, err := m.Body.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n2
 	}
 	return i, nil
 }
@@ -184,6 +246,22 @@ func (m *EventHeader) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovData(uint64(l))
 	}
+	if len(m.Tags) > 0 {
+		for _, s := range m.Tags {
+			l = len(s)
+			n += 1 + l + sovData(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *EventBody) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Content)
+	if l > 0 {
+		n += 1 + l + sovData(uint64(l))
+	}
 	return n
 }
 
@@ -194,8 +272,8 @@ func (m *Event) Size() (n int) {
 		l = m.Header.Size()
 		n += 1 + l + sovData(uint64(l))
 	}
-	l = len(m.Payload)
-	if l > 0 {
+	if m.Body != nil {
+		l = m.Body.Size()
 		n += 1 + l + sovData(uint64(l))
 	}
 	return n
@@ -359,6 +437,116 @@ func (m *EventHeader) Unmarshal(data []byte) error {
 			}
 			m.Peasant = string(data[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tags", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowData
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthData
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Tags = append(m.Tags, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipData(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthData
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *EventBody) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowData
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: EventBody: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: EventBody: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Content", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowData
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthData
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Content = append(m.Content[:0], data[iNdEx:postIndex]...)
+			if m.Content == nil {
+				m.Content = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipData(data[iNdEx:])
@@ -442,11 +630,11 @@ func (m *Event) Unmarshal(data []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 5:
+		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Payload", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Body", wireType)
 			}
-			var byteLen int
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowData
@@ -456,21 +644,23 @@ func (m *Event) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				byteLen |= (int(b) & 0x7F) << shift
+				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			if byteLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLengthData
 			}
-			postIndex := iNdEx + byteLen
+			postIndex := iNdEx + msglen
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Payload = append(m.Payload[:0], data[iNdEx:postIndex]...)
-			if m.Payload == nil {
-				m.Payload = []byte{}
+			if m.Body == nil {
+				m.Body = &EventBody{}
+			}
+			if err := m.Body.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
 			}
 			iNdEx = postIndex
 		default:
@@ -600,16 +790,18 @@ var (
 )
 
 var fileDescriptorData = []byte{
-	// 174 bytes of a gzipped FileDescriptorProto
+	// 208 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0x49, 0x2c, 0x49,
 	0xd4, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0x4a, 0xc9, 0x2c, 0x2e, 0x48, 0x2c, 0x49, 0xce,
-	0x48, 0x2d, 0x52, 0xf2, 0xe6, 0xe2, 0x76, 0x2d, 0x4b, 0xcd, 0x2b, 0xf1, 0x48, 0x4d, 0x4c, 0x49,
+	0x48, 0x2d, 0x52, 0x8a, 0xe4, 0xe2, 0x76, 0x2d, 0x4b, 0xcd, 0x2b, 0xf1, 0x48, 0x4d, 0x4c, 0x49,
 	0x2d, 0x12, 0xe2, 0xe1, 0x62, 0xf1, 0xce, 0xcc, 0x4b, 0x97, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x14,
 	0xe2, 0xe5, 0x62, 0xf5, 0xcb, 0x4f, 0xca, 0x49, 0x95, 0x60, 0x02, 0x73, 0xf9, 0xb8, 0xd8, 0xbc,
 	0xf3, 0x32, 0xd3, 0x33, 0x4a, 0x24, 0x98, 0xc1, 0x7c, 0x7e, 0x2e, 0xf6, 0x80, 0xd4, 0xc4, 0xe2,
-	0xc4, 0xbc, 0x12, 0x09, 0x16, 0x90, 0x80, 0x92, 0x23, 0x17, 0x2b, 0xd8, 0x30, 0x21, 0x75, 0x2e,
-	0x36, 0x88, 0x81, 0x60, 0x83, 0xb8, 0x8d, 0xc4, 0xf5, 0x10, 0x56, 0xea, 0x21, 0xdb, 0x07, 0x32,
-	0x22, 0xb1, 0x32, 0x27, 0x3f, 0x31, 0x45, 0x82, 0x15, 0xa8, 0x92, 0xc7, 0x49, 0xe0, 0xc4, 0x23,
-	0x39, 0xc6, 0x0b, 0x40, 0xfc, 0x00, 0x88, 0x67, 0x3c, 0x96, 0x63, 0x48, 0x62, 0x03, 0x3b, 0xda,
-	0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x27, 0x94, 0x66, 0x98, 0xc2, 0x00, 0x00, 0x00,
+	0xc4, 0xbc, 0x12, 0x09, 0x16, 0xb0, 0x00, 0x50, 0x77, 0x48, 0x62, 0x7a, 0xb1, 0x04, 0xab, 0x02,
+	0xb3, 0x06, 0xa7, 0x92, 0x0c, 0x17, 0x27, 0xd8, 0x68, 0xa7, 0xfc, 0x94, 0x4a, 0x90, 0x5a, 0xe7,
+	0xfc, 0xbc, 0x12, 0x20, 0x17, 0x6c, 0x36, 0x8f, 0x52, 0x28, 0x17, 0x2b, 0x58, 0x56, 0x48, 0x9d,
+	0x8b, 0x0d, 0x62, 0x39, 0x58, 0x82, 0xdb, 0x48, 0x5c, 0x0f, 0xe1, 0x3c, 0x3d, 0x64, 0xb7, 0x29,
+	0x73, 0xb1, 0x80, 0x8c, 0x02, 0x3b, 0x86, 0xdb, 0x48, 0x14, 0x43, 0x19, 0x48, 0xd2, 0x49, 0xe0,
+	0xc4, 0x23, 0x39, 0xc6, 0x0b, 0x40, 0xfc, 0x00, 0x88, 0x67, 0x3c, 0x96, 0x63, 0x48, 0x62, 0x03,
+	0x7b, 0xda, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x68, 0xcc, 0x1c, 0x73, 0x02, 0x01, 0x00, 0x00,
 }

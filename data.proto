@@ -7,9 +7,14 @@ message EventHeader {
     string Noble = 2;    
     string Knight = 3;
     string Peasant = 4;
+    repeated string Tags = 5;
+}
+
+message EventBody{
+    bytes Content = 1;
 }
 
 message Event {
     EventHeader Header = 1;
-    bytes Payload = 5;
+    EventBody Body = 2;
 }
