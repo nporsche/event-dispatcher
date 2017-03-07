@@ -16,15 +16,44 @@
 
 Event dispatcher背后采用的是消息队列nsq,没有引用其他服务以尽最大可能得降低依赖。
 
-生产者example:
+## 如何使用
+1. 启动nsqlookupd
+```
+nsqlookupd -broadcast-address=0.0.0.0
+```
+2. 启动nsqd并将lookup指向刚刚launch的lookupd
+```
+nsqd -lookupd-tcp-address="127.0.0.1:4160" -broadcast-address="127.0.0.1"
+```
+3. 使用repo中的producer example发送一条消息
+```
+go build git.meiqia.com/infrastructure/event-dispatcher/example/producer
+./producer
 ```
 
+4. 使用repo中的consumer就能订阅消息了
+```
+go build git.meiqia.com/infrastructure/event-dispatcher/example/consumer
+./consumer
 ```
 
-消费者example:  
+## 实现细节
+producer本质是将4+n级结构生成对应的topic，生成的规则是：
+```
+topicPrefix = "x7x6y9-"
+
+var buffer bytes.Buffer
+buffer.WriteString(topicPrefix)
+buffer.WriteString(fmt.Sprintf("%s-%s-%s-%s", e.King, e.Noble, e.Knight, e.Peasant))
+for _, tag := range e.Tags {
+    buffer.WriteString(fmt.Sprintf("-%s", tag))
+}
 ```
 
-```
+consumer根据订阅层次情况来决定订阅哪些topic，如果对应的层次字符串为空，意味着这层已经下面的层次的所有消息全部订阅，例如：一个消费者订阅了king="abc",其余
+的层次都没有定义，此时event-dispatcher将会遍历所有的topic，只要符合king="abc"的topic就会全部订阅。另外，consumer每隔一分钟去遍历一遍所有的topic,所以
+如果有新的类型的消息生成，消费者将会在一分钟后才能消费到。
+
 
 
 
