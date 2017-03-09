@@ -15,9 +15,14 @@ type Consumer struct {
 	ehs                 EventHandler
 	interested          EventHeader
 	logger              Logger
+	nsqChannel          string
 }
 
 func NewConsumer(lookupTcpEndpoints, lookupHttpEndpoints []string, h EventHeader) *Consumer {
+	return NewConsumerWithChannel(lookupTcpEndpoints, lookupHttpEndpoints, h, defaultChannel)
+}
+
+func NewConsumerWithChannel(lookupTcpEndpoints, lookupHttpEndpoints []string, h EventHeader, ch string) *Consumer {
 	c := &Consumer{
 		lookupTcpEndpoints:  lookupTcpEndpoints,
 		lookupHttpEndpoints: lookupHttpEndpoints,
@@ -25,6 +30,7 @@ func NewConsumer(lookupTcpEndpoints, lookupHttpEndpoints []string, h EventHeader
 		interested:          h,
 		consumers:           []*nsq.Consumer{},
 		logger:              &DefaultLogger{},
+		nsqChannel:          ch,
 	}
 
 	return c
@@ -90,7 +96,7 @@ func (c *Consumer) listen() {
 					continue
 				}
 				c.logger.Debug("newly interested topic", topic)
-				c.newNsqConsumer(c.lookupHttpEndpoints, topic, defaultChannel)
+				c.newNsqConsumer(c.lookupHttpEndpoints, topic, c.nsqChannel)
 			}
 		} else {
 			c.logger.Error(err)
